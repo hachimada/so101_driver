@@ -1,0 +1,10 @@
+# Copy to ~/.ros/so101_driver/config/leader.yaml and set device_id.
+/leader/so101_leader:
+  ros__parameters:
+    # USB serial number shown by: ros2 run so101_driver so101_list_devices
+    device_id: ""
+    # Written by: ros2 run so101_driver so101_calibrate --role leader
+    # Relative paths start at ~/.ros/so101_driver ($ROS_HOME/so101_driver if set).
+    calibration_profile: "calibration/leader.json"
+    # State publish rate: 5.0-100.0 Hz. GUI/teleop stop when state is older than 0.5 s.
+    publish_rate_hz: 30.0

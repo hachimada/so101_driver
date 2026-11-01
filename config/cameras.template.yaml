@@ -1,0 +1,13 @@
+# Created as ~/.ros/so101_driver/config/cameras.yaml by so101_list_cameras.
+# Find each camera's device path with: ros2 run so101_driver so101_list_cameras
+# Used by: ros2 launch so101_driver teleop.launch.py cameras:=true
+# Each camera publishes /cameras/<name>/image_raw through usb_cam.
+# This is a camera list read by cameras.launch.py, not a ROS parameter file.
+cameras:
+#  - name: front  # Letters, digits and _; used in the topic names.
+#    device: /dev/v4l/by-path/pci-...-video-index0  # USB port path from so101_list_cameras.
+#    width: 640  # Default 640x480 at 30 fps.
+#    height: 480
+#    fps: 30
+#    parameters:  # Optional usb_cam parameters, passed as they are.
+#      pixel_format: mjpeg2rgb

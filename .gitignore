@@ -1,0 +1,16 @@
+# Python and build products
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+/build/
+/dist/
+/install/
+/log/
+
+# Machine-specific settings and calibration belong in ~/.ros/so101_driver.
+# Copies placed in the repository stay ignored so they are never committed.
+/calibration/
+/config/*.yaml
+!/config/*.template.yaml

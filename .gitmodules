@@ -1,0 +1,3 @@
+[submodule "vendor/FTServo_Python"]
+	path = vendor/FTServo_Python
+	url = https://github.com/ftservo/FTServo_Python.git

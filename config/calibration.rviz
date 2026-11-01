@@ -1,0 +1,49 @@
+Panels: []
+Visualization Manager:
+  Class: ""
+  Global Options:
+    Fixed Frame: calibration/world
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+    - Class: rviz_default_plugins/RobotModel
+      Name: Current pose (gray)
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /calibration/live/preview_robot_description
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+      TF Prefix: calibration/live
+    - Class: rviz_default_plugins/RobotModel
+      Name: Reference pose (blue)
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /calibration/target/robot_description
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+      TF Prefix: calibration/target
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/FocusCamera
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Target Frame: <Fixed Frame>
+      Distance: 1.5
+      Pitch: 0.4
+      Yaw: 1.57
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0.25
+
+Window Geometry:
+  Width: 1100
+  Height: 800
+  Hide Left Dock: true
+  Hide Right Dock: true

@@ -1,0 +1,17 @@
+/* Model-only confirmation view. Camera tools remain loaded and usable by mouse. */
+QMenuBar, QToolBar, QStatusBar {
+    min-height: 0px;
+    max-height: 0px;
+    padding: 0px;
+    margin: 0px;
+    border: 0px;
+}
+QToolButton {
+    min-width: 0px;
+    max-width: 0px;
+    min-height: 0px;
+    max-height: 0px;
+    padding: 0px;
+    margin: 0px;
+    border: 0px;
+}

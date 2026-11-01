@@ -1,0 +1,24 @@
+# Copy to ~/.ros/so101_driver/config/follower.yaml and set device_id.
+/follower/so101_follower:
+  ros__parameters:
+    # USB serial number shown by: ros2 run so101_driver so101_list_devices
+    device_id: ""
+    # Written by: ros2 run so101_driver so101_calibrate --role follower
+    # Relative paths start at ~/.ros/so101_driver ($ROS_HOME/so101_driver if set).
+    calibration_profile: "calibration/follower.json"
+    # State publish rate: 5.0-100.0 Hz. GUI/teleop stop when state is older than 0.5 s.
+    publish_rate_hz: 30.0
+    # Per-motor diagnostic update rate; 0 disables additional reads.
+    motor_state_rate_hz: 2.0
+    # Startup permission only. enable_control must also be called explicitly.
+    allow_writes: false
+    command_timeout_s: 0.5
+    # Speed of every joint, gripper included; position targets are sent without interpolation.
+    max_velocity_rad_s: 1.57
+    # Servo acceleration/deceleration register: 1..254 (1 unit = 8.7 deg/s^2).
+    servo_acceleration_raw: 20
+    # Caps gripper output to reduce excessive squeezing and overload during grasping.
+    # Higher values allow a stronger grip but can increase heating/overload; lower values may let objects slip.
+    # Range: 0.0-100.0% of servo output, rounded to 0.1% (0 = no output). Not a force in N.
+    # Applied and verified at each control start (GUI/teleop); not saved across power cycles.
+    gripper_torque_limit_pct: 20.0
