@@ -29,10 +29,9 @@ SO-ARM101のキャリブレーションと制御を行うROS2パッケージで�
 ### インストール
 
 ROS2ワークスペースのルートで実行します。
-`<repository-url>`は、このリポジトリのクローンURLに置き換えてください。
 
 ```bash
-git clone --recurse-submodules "<repository-url>" src/so101_driver
+git clone --recurse-submodules https://github.com/hachimada/so101_driver.git src/so101_driver
 rosdep install --from-paths src/so101_driver --ignore-src --rosdistro humble -r -y
 colcon build --packages-select so101_driver
 source install/setup.bash
@@ -132,7 +131,12 @@ BestEffortで配信する`joint_states`は、購読側もBestEffortにしてく�
 | [テレオペ](docs/so101_teleop.md) | 初期位置合わせ、追従、開始・停止 |
 | [カメラ](docs/so101_cameras.md) | USBカメラの設定、テレオペと同時の配信、記録 |
 
-出典とライセンス:
+## ライセンス
 
-- [Feetech公式Python SDK](docs/feetech_sdk_source.md)
-- [ロボットモデル](description/README.md)
+このパッケージは[Apache License 2.0](LICENSE)で公開しています。
+次のものは、それぞれのライセンスに従います。
+
+| 対象 | ライセンス | 出典 |
+|---|---|---|
+| Feetech公式Python SDK（サブモジュール） | MIT | [Feetech公式Python SDK](docs/feetech_sdk_source.md) |
+| ロボットモデル（URDF・メッシュ） | Apache-2.0 | [ロボットモデル](description/README.md) |

@@ -7,7 +7,10 @@
     and leader-follower teleoperation, using the official Feetech SDK.
   </description>
   <maintainer email="60519909+hachimada@users.noreply.github.com">nao</maintainer>
-  <license>MIT</license>
+  <license>Apache-2.0</license>
+  <url type="website">https://github.com/hachimada/so101_driver</url>
+  <url type="repository">https://github.com/hachimada/so101_driver</url>
+  <url type="bugtracker">https://github.com/hachimada/so101_driver/issues</url>
   <buildtool_depend>ament_python</buildtool_depend>
   <exec_depend>python3-serial</exec_depend>
   <exec_depend>rclpy</exec_depend>
