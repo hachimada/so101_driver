@@ -1,14 +1,21 @@
-# 機体の設定
+# Setup
 
-パッケージの導入は[READMEのインストール](../README.md#インストール)を参照してください。
+**English** | [日本語](ja/so101_setup.md)
 
-## モーターIDと通信速度の事前設定
+This guide prepares each arm and its settings files after installation.
+To install the package, see [Installation in the README](../README.md#installation).
 
-このドライバーは、サーボの設定（EEPROM）を書き換えません。
-組み立て時に、各サーボのモーターIDと通信速度（1 Mbps）を設定しておいてください。
-モーターIDと関節の対応は次のとおりです。LeRobotのSO-101と同じ割り当てです。
+1. [Assign motor IDs and the baud rate](#assign-motor-ids-and-the-baud-rate) (once, when assembling the arm)
+2. [Find the device ID](#find-the-device-id) of each arm
+3. [Edit the settings files](#settings-files)
 
-| モーターID | 関節 |
+## Assign motor IDs and the baud rate
+
+This driver never writes the servo settings (EEPROM).
+Set the motor ID and the baud rate (1 Mbps) of each servo when you assemble the arm.
+The motor IDs map to the joints as follows, the same assignment as the LeRobot SO-101:
+
+| Motor ID | Joint |
 |---:|---|
 | 1 | `shoulder_pan` |
 | 2 | `shoulder_lift` |
@@ -17,69 +24,70 @@
 | 5 | `wrist_roll` |
 | 6 | `gripper` |
 
-LeRobotの`lerobot-setup-motors`で設定できます（LeRobot 0.6.1で確認）。
-`--robot.port`・`--teleop.port`は接続しているポートに置き換えてください。
+You can set them with LeRobot's `lerobot-setup-motors` (tested with LeRobot 0.6.1).
+Replace `--robot.port` and `--teleop.port` with the ports you are using.
 
 ```bash
 lerobot-setup-motors --robot.type=so101_follower --robot.port=/dev/ttyACM0
 lerobot-setup-motors --teleop.type=so101_leader --teleop.port=/dev/ttyACM1
 ```
 
-案内に従い、サーボを1個ずつ接続してEnterを押します。グリッパー（ID 6）から順に設定します。
+Follow the prompts: connect one servo at a time and press Enter, starting from the gripper (ID 6).
 
-## デバイスIDの確認
+## Find the device ID
 
-対象アームをUSBで接続して実行します。
+Each arm is selected by its device ID, the serial number of its USB serial adapter.
+Unlike the port name (`/dev/ttyACM0`), it does not change when you replug the USB cable, so the settings stay valid.
+It is a different identifier from the servo motor IDs (1–6).
+
+Connect the arm over USB and run:
 
 ```bash
 ros2 run so101_driver so101_list_devices
 ```
 
-最初に、設定ファイルの場所と接続中の機器を表示します。
-一覧の`CURRENT CONFIG`列は、そのIDを`device_id`に書き込み済みの役割（`leader`・`follower`）です。
+The tool first shows the settings directory and the connected devices.
+The `CURRENT CONFIG` column shows the role (`leader` or `follower`) whose `device_id` already holds that ID.
 
-1. 案内が出たら、対象アームのUSBケーブルを1本抜き、Enterを押します。
-2. 表示された`DEVICE ID`と案内を確認し、ケーブルを接続し直します。
-3. リーダーとフォロワーそれぞれで確認します。
+1. When prompted, unplug the USB cable of one arm and press Enter.
+2. Note the `DEVICE ID` and the guidance shown, then reconnect the cable.
+3. Repeat for the leader and the follower.
 
-IDがまだ設定ファイルに書かれていない場合は、未作成の[設定ファイル](#設定ファイル)をテンプレートから作成し、IDを書き込むファイルを表示します。
-表示されたファイルを開き、取り外したアームの`device_id`にIDを書き込んでください。
-作成済みのファイルは上書きしません。
+If the ID is not in any settings file yet, the tool creates the missing [settings files](#settings-files) (`leader.yaml`, `follower.yaml`, `teleop.yaml`) from the templates and shows where to write the ID.
+Open the file of the arm you unplugged and write the ID in `device_id`.
+Existing files are never overwritten.
 
-IDはUSBシリアル番号なので、USBの抜き差しでポート番号が変わっても設定を変更する必要はありません。
-サーボのモーターID（1〜6）とは別の識別子です。
+If no device or more than one device disappears, unplug only the target cable and press Enter again.
+A device without a USB serial number, or one whose serial number is shared with another connected device, cannot be selected by ID.
+Press `q` or Ctrl+C to quit.
 
-機器を特定できない場合は、対象のケーブルだけを抜いて再確認してください。
-シリアル番号がない機器や、同じ番号の機器が複数ある場合はIDで特定できません。
-`q`またはCtrl+Cで終了します。
+## Settings files
 
-## 設定ファイル
+Settings and calibration results for each arm are stored in `~/.ros/so101_driver`.
+If the `ROS_HOME` environment variable is set, they are stored in `$ROS_HOME/so101_driver` instead; read `~/.ros` below accordingly.
+Because the files live outside the repository, the same files are used regardless of where you cloned the repository or which directory you run from.
 
-機体ごとの設定とキャリブレーション結果は、`~/.ros/so101_driver`に保存します。
-環境変数`ROS_HOME`を設定している場合は`$ROS_HOME/so101_driver`です。以下の`~/.ros`も読み替えてください。
-リポジトリの外に置くため、クローン先や実行するディレクトリに関係なく同じファイルを使います。
+The paths below are relative to `~/.ros/so101_driver`.
 
-以下のパスは`~/.ros/so101_driver`を基準にしています。
-
-| ファイル | 内容 |
+| File | Contents |
 |---|---|
-| `config/leader.yaml` | リーダーのデバイスIDとキャリブレーション |
-| `config/follower.yaml` | フォロワーのデバイスID、キャリブレーション、動作設定 |
-| `config/teleop.yaml` | テレオペの初期位置合わせと関節倍率 |
-| `config/cameras.yaml` | USBカメラの一覧。カメラを使う場合に`so101_list_cameras`が作成。[カメラ](so101_cameras.md)を参照 |
-| `calibration/leader.json`・`calibration/follower.json` | キャリブレーション結果。[キャリブレーション](so101_calibration.md)で作成 |
+| `config/leader.yaml` | Leader device ID and calibration file |
+| `config/follower.yaml` | Follower device ID, calibration file and motion settings |
+| `config/teleop.yaml` | Teleoperation alignment and joint scales |
+| `config/cameras.yaml` | USB camera list, created by `so101_list_cameras` when you use cameras. See [Cameras](so101_cameras.md) |
+| `calibration/leader.json`, `calibration/follower.json` | Calibration results, created by [calibration](so101_calibration.md) |
 
-`leader.yaml`・`follower.yaml`の`device_id`を確認したIDへ変更します。
-数値だけのIDも、引用符で囲んで指定してください。
+Set `device_id` in `leader.yaml` and `follower.yaml` to the IDs you found.
+Quote the ID even if it contains only digits.
 
 ```yaml
 device_id: "your-device-serial"
 ```
 
-`calibration_profile`は、それぞれ`calibration/leader.json`・`calibration/follower.json`を参照する設定になっています。
+`calibration_profile` already points to `calibration/leader.json` and `calibration/follower.json` respectively.
 
-`config/*.yaml`は`so101_list_devices`が作成します。
-手動で作成する場合は、インストールしたテンプレートをコピーします。
+`so101_list_devices` creates `config/leader.yaml`, `config/follower.yaml` and `config/teleop.yaml`.
+To create them by hand, copy the installed templates:
 
 ```bash
 mkdir -p ~/.ros/so101_driver/config
@@ -89,41 +97,46 @@ cp -n "$share/config/follower.template.yaml" ~/.ros/so101_driver/config/follower
 cp -n "$share/config/teleop.template.yaml" ~/.ros/so101_driver/config/teleop.yaml
 ```
 
-## 主な設定項目
+### Main settings
 
-| 項目 | 用途 | 詳細 |
+| Setting | Purpose | Details |
 |---|---|---|
-| `device_id` | 接続するアームのUSBシリアル番号 | このガイドの「デバイスIDの確認」 |
-| `calibration_profile` | 使用するキャリブレーションJSON | [キャリブレーション](so101_calibration.md#保存先と適用) |
-| `publish_rate_hz` | 状態の配信頻度（リーダー・フォロワー） | [動作設定](so101_follower.md#位置指令と動作設定)、[リーダーノード](so101_teleop.md#リーダーノードleaderso101_leader) |
-| `command_timeout_s` | フォロワーの指令の有効期間 | [動作設定](so101_follower.md#位置指令と動作設定) |
-| `max_velocity_rad_s` / `servo_acceleration_raw` | フォロワーの移動速度・加減速 | [動作設定](so101_follower.md#位置指令と動作設定) |
-| `gripper_torque_limit_pct` | グリッパーの出力上限 | [動作設定](so101_follower.md#位置指令と動作設定) |
-| `motor_state_rate_hz` | モーター状態の更新頻度 | [状態表示](so101_motor_monitor.md#更新頻度) |
-| `alignment_*` / `joint_scales` | テレオペの位置合わせ・関節倍率 | [テレオペ設定](so101_teleop.md#位置合わせと関節倍率の設定) |
+| `device_id` | USB serial number of the arm to connect | [Find the device ID](#find-the-device-id) |
+| `calibration_profile` | Calibration JSON to use | [Calibration](so101_calibration.md#output-files) |
+| `publish_rate_hz` | State publish rate (leader and follower) | [Motion settings](so101_follower.md#motion-settings), [Leader node](so101_teleop.md#leader-node-leaderso101_leader) |
+| `command_timeout_s` | How long a follower command stays valid | [Motion settings](so101_follower.md#motion-settings) |
+| `max_velocity_rad_s` / `servo_acceleration_raw` | Follower speed and acceleration | [Motion settings](so101_follower.md#motion-settings) |
+| `gripper_torque_limit_pct` | Gripper output limit | [Motion settings](so101_follower.md#motion-settings) |
+| `motor_state_rate_hz` | Motor status update rate | [Motor status](so101_motor_monitor.md#update-rate) |
+| `alignment_*` / `joint_scales` | Teleoperation alignment and joint scales | [Teleoperation settings](so101_teleop.md#settings) |
 
-設定変更はノードの再起動で反映します。再ビルドは不要です。
-各設定の有効な値は、詳細のページに記載しています。範囲外の値では、ノードは起動時にエラーを表示して終了します。
-数値は`30`と`30.0`のどちらの書き方でも指定できます。ただし`joint_scales`のようなリストでは、すべての値を小数点付きで書いてください。
-`calibration_profile`の相対パスは`~/.ros/so101_driver`を基準に解決します。絶対パスも指定できます。
-YAML中の`$HOME`や`$PWD`は展開されません。
+### Rules for values
 
-## 起動時の設定ファイル指定
+- Changes take effect when the node restarts. No rebuild is needed.
+- The valid values of each setting are listed on its details page. With an out-of-range value, the node logs an error at startup and exits.
+- Numbers can be written as `30` or `30.0`. In lists such as `joint_scales`, however, write every value with a decimal point.
+- A relative `calibration_profile` path is resolved from `~/.ros/so101_driver`. Absolute paths and `~` also work.
+- Environment variables such as `$HOME` or `$PWD` in the YAML are not expanded.
 
-| 機能 | 起動ファイル | 設定ファイルの引数 |
+## Choose settings files at launch
+
+| Feature | Launch file | Settings file arguments |
 |---|---|---|
-| ROS制御インターフェース | `follower_control.launch.py` | `params_file` |
-| スライダーGUI | `follower_slider_control.launch.py` | `params_file` |
-| テレオペ | `teleop.launch.py` | `leader_params_file`、`follower_params_file`、`teleop_params_file` |
+| ROS control interface | `follower_control.launch.py` | `params_file` |
+| Slider GUI | `follower_slider_control.launch.py` | `params_file` |
+| Teleoperation | `teleop.launch.py` | `leader_params_file`, `follower_params_file`, `teleop_params_file` |
 
-引数を省略すると、`~/.ros/so101_driver/config/`の対応するYAMLを使用します。
-そのファイルがなければテンプレートを参照します。実機を使う前に、上記の手順でデバイスIDを設定してください。
-使用した設定ファイルは、起動時にターミナルへ表示します。
+When an argument is omitted, the matching YAML in `~/.ros/so101_driver/config/` is used.
+If that file does not exist, the installed template is used instead, so set the device IDs as described above before using the arms.
+The settings files in use are printed in the terminal at startup.
 
-別の設定ファイルを使う場合は、引数に絶対パスを指定します。
+To use another settings file, pass its absolute path:
 
 ```bash
 ros2 launch so101_driver follower_slider_control.launch.py params_file:=/path/to/follower.yaml
 ```
 
-起動コマンドは[READMEの起動](../README.md#起動)を参照してください。
+Keep the top-level node keys of the templates (`/leader/so101_leader:`, `/follower/so101_follower:`, `/so101_teleop:`).
+The slider GUI and teleoperation also read the follower calibration from the `/follower/so101_follower:` key.
+
+For the launch commands, see [Run in the README](../README.md#3-run).

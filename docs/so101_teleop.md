@@ -1,57 +1,75 @@
-# テレオペ
+# Teleoperation
 
-フォロワーをリーダーの姿勢に合わせてから、リーダーの動きへ追従させます。
+**English** | [日本語](ja/so101_teleop.md)
 
-## 起動
+Teleoperation first moves the follower to the leader pose, then makes it follow the leader.
 
-両機の[設定](so101_setup.md)と[キャリブレーション](so101_calibration.md)を済ませてから実行します。
+## Start
+
+Complete [setup](so101_setup.md) and [calibration](so101_calibration.md) for both arms first.
 
 ```bash
 ros2 launch so101_driver teleop.launch.py
 ```
 
-1. 両機の状態を取得すると、自動でフォロワーがリーダーの姿勢へ移動します。
-2. 「Aligning」と表示されている間は、リーダーの姿勢を保ちます。
-3. 「Aligned; teleoperation running」と表示されたら、リーダーを動かして操作します。
+1. Once the state of both arms is available, the follower automatically moves to the leader pose.
+2. While the terminal shows `Aligning`, keep the leader still.
+3. When it shows `Aligned; teleoperation running`, move the leader to operate the follower.
 
-位置合わせ中にリーダーを動かすと、目標もその姿勢へ更新します。
-一致は両機のキャリブレーション後の角度で判定するため、基準姿勢と関節方向を揃えてください。
+If you move the leader during alignment, the target follows the new pose.
+Alignment compares the calibrated angles of both arms, so calibrate both with the same reference pose and joint directions.
 
-USBカメラの画像も配信する場合は、`cameras:=true`を付けます。設定は[カメラ](so101_cameras.md)を参照してください。
+To also stream USB camera images, add `cameras:=true`. See [Cameras](so101_cameras.md) for the setup.
 
-## 手動で開始・停止する
+### Launch arguments
 
-自動開始を無効にする場合は、起動コマンドに`autostart:=false`を追加します。
+| Argument | Default | Description |
+|---|---|---|
+| `leader_params_file` | `~/.ros/so101_driver/config/leader.yaml` | Leader settings YAML |
+| `follower_params_file` | `~/.ros/so101_driver/config/follower.yaml` | Follower settings YAML |
+| `teleop_params_file` | `~/.ros/so101_driver/config/teleop.yaml` | Teleoperation settings YAML |
+| `allow_writes` | `true` | Allow follower control |
+| `autostart` | `true` | Align and start once both arms report their state |
+| `cameras` | `false` | Also start the USB cameras in `cameras_file` |
+| `cameras_file` | `~/.ros/so101_driver/config/cameras.yaml` | USB camera list |
 
-開始:
+When a `*_params_file` YAML does not exist, the installed template is used instead.
+
+## Start and stop manually
+
+To disable the automatic start, add `autostart:=false` to the launch command.
+
+Start:
 
 ```bash
 ros2 service call /so101_teleop/enable std_srvs/srv/SetBool '{data: true}'
 ```
 
-停止:
+Stop:
 
 ```bash
 ros2 service call /so101_teleop/enable std_srvs/srv/SetBool '{data: false}'
 ```
 
-開始サービスは位置合わせを行い、姿勢の一致を確認してから成功応答を返します。
-再開始時も位置合わせから始まります。
+The start service aligns the follower and returns success after the poses match.
+Every restart begins with alignment again.
 
-停止サービスではフォロワーの現在位置を保持します。
+The stop service makes the follower hold its current position.
 
-## 終了
+The automatic start is attempted only once. If it fails, for example because the leader pose is outside the follower range, fix the cause and use the start service.
 
-フォロワーの腕を支えて、起動したターミナルでCtrl+Cを押します。
-全6軸のトルクをOFFにし、読み戻しで確認してから接続を閉じます。
-「Torque released on all 6 joints」と表示されれば完了です。
+## Shut down
 
-通信異常などでOFFを確認できない場合は、終了時にエラーを表示します。
-その場合、トルクが残っている可能性があるため、接続状態を確認してください。
+Support the follower arm and press Ctrl+C in the terminal that started teleoperation.
+The driver turns off torque on all six joints, confirms it by readback and then closes the connection.
+It is complete when `Torque released on all 6 joints` is shown.
 
-## 位置合わせと関節倍率の設定
+If the release cannot be confirmed, for example because of a communication error, an error is shown at shutdown (`Torque release at shutdown not confirmed`).
+Torque may still be on in that case, so check the connection.
 
-`~/.ros/so101_driver/config/teleop.yaml`を編集し、テレオペを再起動して反映します。
+## Settings
+
+Edit `~/.ros/so101_driver/config/teleop.yaml` and restart teleoperation to apply the changes.
 
 ```yaml
 /so101_teleop:
@@ -62,65 +80,66 @@ ros2 service call /so101_teleop/enable std_srvs/srv/SetBool '{data: false}'
     alignment_timeout_s: 30.0
 ```
 
-| 設定 | 既定値 | 意味 |
+| Setting | Default | Meaning |
 |---|---|---|
-| `alignment_tolerance_rad` | 0.05 rad（約2.9°） | 各関節の目標と実測角度の許容差（0より大きい値）。小さくすると一致条件が厳しくなる |
-| `alignment_settle_time_s` | 0.2秒 | 全6軸が許容差内に連続して収まる必要がある時間（0より大きく、`alignment_timeout_s`より短い値） |
-| `alignment_timeout_s` | 30秒 | 位置合わせの制限時間（0より大きい値）。低速で動かす場合は長く設定 |
-| `joint_scales` | 全軸1.0 | 各関節のリーダー角度に掛ける倍率（6個の有限値） |
+| `alignment_tolerance_rad` | 0.05 rad (about 2.9°) | Allowed difference between the target and the measured angle of each joint (greater than 0). Smaller values require a closer match |
+| `alignment_settle_time_s` | 0.2 s | How long all six joints must stay within the tolerance (greater than 0 and less than `alignment_timeout_s`) |
+| `alignment_timeout_s` | 30 s | Time limit for alignment (greater than 0). Increase it for slow motion settings |
+| `joint_scales` | 1.0 for every joint | Factor applied to each leader joint angle (six finite values) |
 
-範囲外の値を指定すると、テレオペは起動時にエラーを表示して終了します。
+With an out-of-range value, teleoperation logs an error at startup and exits.
 
-関節倍率の順序は`shoulder_pan`、`shoulder_lift`、`elbow_flex`、`wrist_flex`、`wrist_roll`、`gripper`です。
--1.0で方向を反転し、0.0で目標を0 radに固定します。
-値はすべて`-1.0`のように小数点付きで書いてください。`[-1, 1.0, ...]`のように整数と小数が混ざると、YAMLを読み込めず起動に失敗します。
-位置合わせ・追従ともに「目標角度 = 関節倍率 × リーダー現在角度」を使います。
+The order of `joint_scales` is `shoulder_pan`, `shoulder_lift`, `elbow_flex`, `wrist_flex`, `wrist_roll`, `gripper`.
+-1.0 reverses the direction, and 0.0 fixes the target at 0 rad.
+Write every value with a decimal point, such as `-1.0`. A list that mixes integers and decimals, such as `[-1, 1.0, ...]`, cannot be loaded and startup fails.
+Both alignment and following use "target angle = joint scale × current leader angle".
 
-移動速度・加減速は`~/.ros/so101_driver/config/follower.yaml`で設定します。
-[フォロワーの動作設定](so101_follower.md#位置指令と動作設定)を参照してください。
-状態の配信頻度は、`leader.yaml`・`follower.yaml`の`publish_rate_hz`（既定30 Hz、5〜100 Hz）で設定します。
+The speed and acceleration are set in `~/.ros/so101_driver/config/follower.yaml`.
+See [Motion settings](so101_follower.md#motion-settings).
+The state publish rate is `publish_rate_hz` in `leader.yaml` and `follower.yaml` (default 30 Hz, 5–100 Hz).
 
-## ROSインターフェース
+## ROS interface
 
-### リーダーノード（`/leader/so101_leader`）
+### Leader node (`/leader/so101_leader`)
 
-テレオペの起動コマンドで一緒に起動します。モーターへの書き込みは行いません。
+Started together by the teleoperation launch command. It never writes to the motors.
 
-| 名前 | 型 | ノードのQoS | 内容 |
+| Name | Type | Node QoS | Description |
 |---|---|---|---|
-| `/leader/joint_states` | sensor_msgs/msg/JointState | 配信：**BestEffort**、KeepLast 5 | 6軸の角度、rad。グリッパーは閉〜開の角度に収めて配信 |
-| `/leader/diagnostics` | diagnostic_msgs/msg/DiagnosticArray | 配信：Reliable、KeepLast 10 | 読み取りの状態と、取得失敗数（`failed_samples`・`consecutive_failures`） |
+| `/leader/joint_states` | sensor_msgs/msg/JointState | Publish: **BestEffort**, KeepLast 5 | Angles of the six joints, rad. The gripper is limited to the closed–open range |
+| `/leader/diagnostics` | diagnostic_msgs/msg/DiagnosticArray | Publish: Reliable, KeepLast 10 | Read state, and the failure counts `failed_samples` and `consecutive_failures` |
 
-`/leader/joint_states`を購読する場合は、購読側もBestEffortにしてください。
+Subscribe to `/leader/joint_states` with BestEffort QoS.
+A failed read publishes no joint state; the diagnostics report it as an error.
 
-設定は`~/.ros/so101_driver/config/leader.yaml`で行い、ノードを再起動して反映します。
+The leader settings are in `~/.ros/so101_driver/config/leader.yaml`. Restart the node to apply changes.
 
-| 設定 | 既定値 | 内容 |
+| Setting | Default | Description |
 |---|---|---|
-| `device_id` | なし | USBシリアル番号。[デバイスIDの確認](so101_setup.md#デバイスidの確認)を参照 |
-| `calibration_profile` | `calibration/leader.json` | キャリブレーション結果。相対パスは`~/.ros/so101_driver`が基準 |
-| `publish_rate_hz` | 30.0 | 角度の読み取りと配信の頻度（5〜100 Hz） |
+| `device_id` | None | USB serial number. See [Find the device ID](so101_setup.md#find-the-device-id) |
+| `calibration_profile` | `calibration/leader.json` | Calibration result. Relative paths start at `~/.ros/so101_driver` |
+| `publish_rate_hz` | 30.0 | Rate of angle reads and publishing (5–100 Hz) |
 
-### テレオペノード（`/so101_teleop`）
+### Teleoperation node (`/so101_teleop`)
 
-| 名前 | 型 | 内容 |
+| Name | Type | Description |
 |---|---|---|
-| `/leader/joint_states` | sensor_msgs/msg/JointState | リーダーの角度を購読（BestEffort） |
-| `/so101_teleop/enable` | std_srvs/srv/SetBool | trueで位置合わせから開始、falseで停止 |
+| `/leader/joint_states` | sensor_msgs/msg/JointState | Subscribes to the leader angles (BestEffort) |
+| `/so101_teleop/enable` | std_srvs/srv/SetBool | `true` starts with alignment; `false` stops |
 
-フォロワーへの指令と開始・停止には、[フォロワー制御インターフェース](so101_follower.md#rosインターフェース)を使います。
+Commands to the follower and the start and stop of follower control use the [follower control interface](so101_follower.md#ros-interface).
 
-## 開始できない・途中で停止した場合
+## Troubleshooting
 
-| 状況 | 確認する内容 |
+| Situation | What to check |
 |---|---|
-| 状態取得を待っている | ターミナルに表示された機体の接続・設定 |
-| 位置合わせできない | リーダーの姿勢がフォロワーの可動範囲に収まるか |
-| 位置合わせがタイムアウト | 表示された関節の角度差、移動速度、制限時間 |
-| 通信異常・状態取得の途絶 | 接続とモーターの異常表示 |
+| Waiting for state | The connection and settings of the arm named in the terminal |
+| Alignment cannot start (`Cannot align`) | Whether the leader pose is within the follower's range |
+| Alignment timed out | The angle difference of the joint shown, the speed settings and the time limit |
+| Communication error or lost state | The connection and the motor fault display |
 
-フォロワーへ送る目標はキャリブレーションに基づく指令範囲へ制限します。
-範囲の端でも許容差内に合わせられない場合は、位置合わせを中止します。
+The targets sent to the follower are limited to its command range, which comes from the calibration.
+If a joint cannot get within the tolerance even at the edge of the range, alignment is aborted.
 
-リーダーまたはフォロワーの状態が0.5秒以上取得できない場合も停止します。
-原因を解消してから開始サービスで再開してください。自動では再開しません。
+Teleoperation also stops when the leader or follower state is more than 0.5 seconds old.
+Fix the cause, then resume with the start service. It does not resume automatically.

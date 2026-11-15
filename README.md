@@ -1,34 +1,39 @@
 # so101_driver
 
-SO-ARM101のキャリブレーションと制御を行うROS2パッケージです。テレオペでは、USBカメラの画像も一緒に配信できます。
+**English** | [日本語](README.ja.md)
 
-| 機能 | 内容 |
+A ROS 2 package for calibrating and controlling the SO-ARM101 (SO-101) robot arm through the official Feetech SDK.
+Teleoperation can also stream USB camera images on ROS topics.
+
+## Features
+
+| Feature | Description |
 |---|---|
-| リーダー／フォロワーのキャリブレーション | CLIの案内と見本モデルを使い、基準姿勢・可動範囲を記録 |
-| フォロワー制御インターフェース | ROSトピックによる6軸の位置指令と、制御開始・停止サービス |
-| スライダーGUI | 6軸の操作と、電流・電圧・温度などの状態確認 |
-| テレオペ | リーダーの動きをフォロワーへ反映 |
-| カメラ（任意） | テレオペと同時に、USBカメラの画像をROSトピックで配信（usb_camを使用） |
+| Calibration | A terminal guide and an RViz reference model record the reference pose and joint ranges of the leader and follower arms |
+| Follower control interface | Six-joint position commands on a ROS topic, and services to start and stop control |
+| Slider GUI | Move each joint and check motor state such as current, voltage and temperature |
+| Teleoperation | The follower aligns to the leader pose, then follows the leader |
+| Cameras (optional) | Publish USB camera images alongside teleoperation, using [usb_cam](https://index.ros.org/p/usb_cam/) |
 
-## 要件
+## Safety
 
-- Ubuntu 22.04 / ROS2 Humble / Python 3.10
-- Git・colcon・rosdepが利用できるROS2開発環境
-- SO-ARM101（STS3215 × 6、モーターID 1〜6、通信速度1 Mbps）とUSBシリアル接続
-- モーターIDと通信速度は事前に設定しておく必要があります。[モーターIDと通信速度の事前設定](docs/so101_setup.md#モーターidと通信速度の事前設定)を参照してください
-- カメラを使う場合：UVC対応のUSBカメラと`ros-humble-usb-cam`（so101_driverの依存には含まない）
+> [!WARNING]
+> - Launching with control allowed moves the real arm. Before starting, make sure no people or objects are within reach of the arm.
+> - Releasing torque lets the arm fall under its own weight. Support the arm before releasing torque or shutting down.
+> - Turning off the servo power also releases torque. If the software cannot stop the arm, support the arm before turning off the power.
 
-## 安全上の注意
+## Requirements
 
-- 制御を許可して起動すると、実機が動きます。起動前に、アームの届く範囲に人や物がないことを確認してください。
-- トルクを解除すると、腕は自重で落ちます。トルクの解除や終了の操作は、腕を支えてから行ってください。
-- サーボの電源を切ったときもトルクが抜けます。ソフトウェアで止められない場合は、腕を支えてから電源を切ってください。
+- Ubuntu 22.04, ROS 2 Humble, Python 3.10
+- A ROS 2 development environment with Git, colcon and rosdep
+- An SO-ARM101 (six STS3215 servos with motor IDs 1–6 at 1 Mbps) connected over USB serial.
+  The driver never changes the motor IDs or the baud rate, so set them beforehand.
+  See [Assign motor IDs and the baud rate](docs/so101_setup.md#assign-motor-ids-and-the-baud-rate).
+- For cameras: UVC USB cameras and `ros-humble-usb-cam` (not a dependency of so101_driver)
 
-## クイックスタート
+## Installation
 
-### インストール
-
-ROS2ワークスペースのルートで実行します。
+Run in the root of your ROS 2 workspace:
 
 ```bash
 git clone --recurse-submodules https://github.com/hachimada/so101_driver.git src/so101_driver
@@ -37,106 +42,180 @@ colcon build --packages-select so101_driver
 source install/setup.bash
 ```
 
-以降のコマンドは、`install/setup.bash`を読み込んだターミナルであれば、どのディレクトリからでも実行できます。
+The commands below work from any directory in a terminal that has sourced `install/setup.bash`.
 
-### 機体の設定
+## Quick start
 
-`so101_list_devices`で各アームのデバイスIDを確認します。
-設定ファイル（`~/.ros/so101_driver/config/`）がなければテンプレートから作成するので、表示されたファイルの`device_id`にIDを書き込んでください。
-手順は[機体の設定](docs/so101_setup.md)を参照してください。
+### 1. Set the device IDs
 
-### キャリブレーション
+Run `so101_list_devices` and unplug each arm when prompted to find its device ID (USB serial number).
+If the ID is not in any settings file yet, the tool creates the missing files in `~/.ros/so101_driver/config/` from the templates.
+Write the ID in `device_id` of the file it shows.
+See [Setup](docs/so101_setup.md) for details.
+
+```bash
+ros2 run so101_driver so101_list_devices
+```
+
+### 2. Calibrate
 
 ```bash
 ros2 run so101_driver so101_calibrate --role leader
 ros2 run so101_driver so101_calibrate --role follower
 ```
 
-見本の姿勢に合わせてグリッパーを閉じ、Enterで開始します。
-全関節を動かし、Enterで終了・保存します。
+Match the reference model's pose, close the gripper and press Enter to start.
+Move every joint, then press Enter to finish and save.
+See [Calibration](docs/so101_calibration.md).
 
-### 起動
+### 3. Run
 
-いずれも実機が動きます。初回は各ガイドで開始・停止の手順を確認してください。
+All of the following move the real arm. Before the first run, read the start and stop steps in each guide.
 
-スライダーGUI:
+Slider GUI ([guide](docs/so101_gui.md)):
 
 ```bash
 ros2 launch so101_driver follower_slider_control.launch.py
 ```
 
-終了時は腕を支え、「Release torque and quit」を押します。
+To quit, support the arm and press **Release torque and quit**.
 
-テレオペ:
+Teleoperation ([guide](docs/so101_teleop.md)):
 
 ```bash
 ros2 launch so101_driver teleop.launch.py
 ```
 
-フォロワーがリーダーの姿勢へ移動してから、リーダーの動きに追従します。
-終了時はフォロワーの腕を支えてCtrl+Cを押します。全6軸のトルクをOFFにして終了します。
+The follower moves to the leader pose, then follows the leader.
+To quit, support the follower arm and press Ctrl+C. Torque is released on all six joints before the driver exits.
 
-USBカメラの画像も配信する場合は、`cameras:=true`を付けます。
-事前に`so101_list_cameras`でカメラのパスを確認し、`cameras.yaml`に書き込んでください（[カメラ](docs/so101_cameras.md)）。
+To also stream USB camera images, add `cameras:=true`.
+First find the camera paths with `so101_list_cameras` and write them in `cameras.yaml` ([Cameras](docs/so101_cameras.md)).
 
 ```bash
 ros2 launch so101_driver teleop.launch.py cameras:=true
 ```
 
-外部プログラムからROSトピックとサービスで制御する場合:
+Control from your own program through ROS topics and services ([guide](docs/so101_follower.md)):
 
 ```bash
 ros2 launch so101_driver follower_control.launch.py allow_writes:=true
 ```
 
-## ROSインターフェース
+## Usage
 
-このパッケージのノードが提供するトピックとサービスです。QoSや項目の詳細は、各行のリンク先を参照してください。
+### Command-line tools
 
-| 名前 | 型 | ノード側 | 内容 | 詳細 |
-|---|---|---|---|---|
-| `/follower/joint_command` | sensor_msgs/msg/JointState | 購読 | フォロワー6軸の位置目標（rad） | [フォロワー](docs/so101_follower.md#rosインターフェース) |
-| `/follower/joint_states` | sensor_msgs/msg/JointState | 配信（BestEffort） | フォロワー6軸の実測角度（rad） | [フォロワー](docs/so101_follower.md#rosインターフェース) |
-| `/follower/diagnostics` | diagnostic_msgs/msg/DiagnosticArray | 配信 | フォロワーの制御状態と異常 | [フォロワー](docs/so101_follower.md#rosインターフェース) |
-| `/follower/motor_states` | diagnostic_msgs/msg/DiagnosticArray | 配信 | 各モーターの電流・電圧・温度など | [モーター状態](docs/so101_motor_monitor.md#rosトピック) |
-| `/follower/enable_control` | std_srvs/srv/SetBool | サービス | trueで制御開始、falseで保持・指令受付停止 | [フォロワー](docs/so101_follower.md#rosインターフェース) |
-| `/follower/release_torque` | std_srvs/srv/Trigger | サービス | フォロワー全軸のトルク解除 | [フォロワー](docs/so101_follower.md#rosインターフェース) |
-| `/leader/joint_states` | sensor_msgs/msg/JointState | 配信（BestEffort） | リーダー6軸の角度（rad） | [テレオペ](docs/so101_teleop.md#rosインターフェース) |
-| `/leader/diagnostics` | diagnostic_msgs/msg/DiagnosticArray | 配信 | リーダーの読み取り状態 | [テレオペ](docs/so101_teleop.md#rosインターフェース) |
-| `/so101_teleop/enable` | std_srvs/srv/SetBool | サービス | テレオペの開始・停止 | [テレオペ](docs/so101_teleop.md#rosインターフェース) |
-| `/cameras/<name>/image_raw` | sensor_msgs/msg/Image | 配信 | カメラの画像 | [カメラ](docs/so101_cameras.md#トピック) |
-| `/cameras/<name>/image_raw/compressed` | sensor_msgs/msg/CompressedImage | 配信 | JPEGで圧縮したカメラの画像 | [カメラ](docs/so101_cameras.md#トピック) |
-| `/cameras/<name>/camera_info` | sensor_msgs/msg/CameraInfo | 配信 | カメラの解像度と校正値 | [カメラ](docs/so101_cameras.md#トピック) |
-
-起動するlaunchによって、使えるトピックとサービスが異なります。
-
-| トピック・サービス | 起動するlaunch |
+| Command | Description |
 |---|---|
-| `/follower/...` | `follower_control.launch.py`、`follower_slider_control.launch.py`、`teleop.launch.py` |
-| `/leader/...`、`/so101_teleop/...` | `teleop.launch.py` |
-| `/cameras/...` | `teleop.launch.py cameras:=true`、`cameras.launch.py` |
+| `ros2 run so101_driver so101_list_devices` | Find an arm's device ID by unplugging it, and create missing settings files. See [Setup](docs/so101_setup.md#find-the-device-id) |
+| `ros2 run so101_driver so101_calibrate` | Calibrate the leader or follower. See [Calibration](docs/so101_calibration.md) |
+| `ros2 run so101_driver so101_list_cameras` | Find a camera's USB port path by unplugging it, and create `cameras.yaml`. See [Cameras](docs/so101_cameras.md#find-the-camera-path) |
 
-BestEffortで配信する`joint_states`は、購読側もBestEffortにしてください。
-カメラの画像は、購読側をReliableにしてください。
+### Launch files
 
-## ドキュメント
-
-| ガイド | 内容 |
-|---|---|
-| [機体の設定](docs/so101_setup.md) | デバイスIDの確認、設定ファイルの作成と保存場所 |
-| [キャリブレーション](docs/so101_calibration.md) | 基準姿勢・可動範囲の記録、保存、適用 |
-| [フォロワー制御インターフェース](docs/so101_follower.md) | ROS API、制御の開始・停止、動作設定 |
-| [スライダーGUI](docs/so101_gui.md) | 関節の操作、ホーム位置の登録・復帰 |
-| [モーター状態の見方](docs/so101_motor_monitor.md) | 表示項目、単位、異常の確認 |
-| [テレオペ](docs/so101_teleop.md) | 初期位置合わせ、追従、開始・停止 |
-| [カメラ](docs/so101_cameras.md) | USBカメラの設定、テレオペと同時の配信、記録 |
-
-## ライセンス
-
-このパッケージは[Apache License 2.0](LICENSE)で公開しています。
-次のものは、それぞれのライセンスに従います。
-
-| 対象 | ライセンス | 出典 |
+| Launch file | Starts | Arguments (default) |
 |---|---|---|
-| Feetech公式Python SDK（サブモジュール） | MIT | [Feetech公式Python SDK](docs/feetech_sdk_source.md) |
-| ロボットモデル（URDF・メッシュ） | Apache-2.0 | [ロボットモデル](description/README.md) |
+| `follower_control.launch.py` | Follower node | `params_file`, `allow_writes` (`false`), `release_torque_on_shutdown` (`false`) |
+| `follower_slider_control.launch.py` | Follower node and slider GUI | `params_file`, `allow_writes` (`true`) |
+| `teleop.launch.py` | Leader, follower and teleoperation nodes, and the cameras with `cameras:=true` | `leader_params_file`, `follower_params_file`, `teleop_params_file`, `allow_writes` (`true`), `autostart` (`true`), `cameras` (`false`), `cameras_file` |
+| `cameras.launch.py` | One usb_cam node per camera | `cameras_file` |
+
+- The `*params_file` arguments default to the matching YAML in `~/.ros/so101_driver/config/`, or to the installed template when that file does not exist. See [Choose settings files at launch](docs/so101_setup.md#choose-settings-files-at-launch).
+- `cameras_file` defaults to `~/.ros/so101_driver/config/cameras.yaml`.
+- `teleop.launch.py` always releases the follower torque on shutdown (with the default `allow_writes:=true`).
+- If one of the arm nodes or the slider GUI exits, the whole launch shuts down. A camera node that stops does not.
+
+### Nodes
+
+| Node | Executable | Started by |
+|---|---|---|
+| `/follower/so101_follower` | `follower_node` | `follower_control.launch.py`, `follower_slider_control.launch.py`, `teleop.launch.py` |
+| `/leader/so101_leader` | `leader_node` | `teleop.launch.py` |
+| `/so101_teleop` | `teleop_node` | `teleop.launch.py` |
+| `/so101_slider_control` | `slider_gui` | `follower_slider_control.launch.py` |
+| `/cameras/<name>/usb_cam` | `usb_cam_node_exe` (usb_cam) | `cameras.launch.py`, `teleop.launch.py cameras:=true` |
+
+## ROS interfaces
+
+Topics and services provided by the nodes of this package. See the linked pages for QoS and field details.
+
+| Name | Type | Node side | Description | Details |
+|---|---|---|---|---|
+| `/follower/joint_command` | sensor_msgs/msg/JointState | Subscribe | Position targets for the six follower joints (rad) | [Follower](docs/so101_follower.md#ros-interface) |
+| `/follower/joint_states` | sensor_msgs/msg/JointState | Publish (BestEffort) | Measured angles of the six follower joints (rad) | [Follower](docs/so101_follower.md#ros-interface) |
+| `/follower/diagnostics` | diagnostic_msgs/msg/DiagnosticArray | Publish | Follower control state and errors | [Follower](docs/so101_follower.md#diagnostics) |
+| `/follower/motor_states` | diagnostic_msgs/msg/DiagnosticArray | Publish | Current, voltage, temperature and more for each motor | [Motor status](docs/so101_motor_monitor.md#ros-topic) |
+| `/follower/enable_control` | std_srvs/srv/SetBool | Service | `true` starts control; `false` holds and stops accepting commands | [Follower](docs/so101_follower.md#ros-interface) |
+| `/follower/release_torque` | std_srvs/srv/Trigger | Service | Release torque on all follower joints | [Follower](docs/so101_follower.md#ros-interface) |
+| `/leader/joint_states` | sensor_msgs/msg/JointState | Publish (BestEffort) | Angles of the six leader joints (rad) | [Teleoperation](docs/so101_teleop.md#ros-interface) |
+| `/leader/diagnostics` | diagnostic_msgs/msg/DiagnosticArray | Publish | Leader read state | [Teleoperation](docs/so101_teleop.md#ros-interface) |
+| `/so101_teleop/enable` | std_srvs/srv/SetBool | Service | Start or stop teleoperation | [Teleoperation](docs/so101_teleop.md#ros-interface) |
+| `/cameras/<name>/image_raw` | sensor_msgs/msg/Image | Publish | Camera image | [Cameras](docs/so101_cameras.md#topics) |
+| `/cameras/<name>/image_raw/compressed` | sensor_msgs/msg/CompressedImage | Publish | JPEG-compressed camera image | [Cameras](docs/so101_cameras.md#topics) |
+| `/cameras/<name>/camera_info` | sensor_msgs/msg/CameraInfo | Publish | Camera resolution and calibration | [Cameras](docs/so101_cameras.md#topics) |
+
+The available topics and services depend on the launch file:
+
+| Topics and services | Launch file |
+|---|---|
+| `/follower/...` | `follower_control.launch.py`, `follower_slider_control.launch.py`, `teleop.launch.py` |
+| `/leader/...`, `/so101_teleop/...` | `teleop.launch.py` |
+| `/cameras/...` | `teleop.launch.py cameras:=true`, `cameras.launch.py` |
+
+Subscribe to the BestEffort `joint_states` topics with BestEffort QoS.
+Subscribe to the camera images with Reliable QoS.
+
+## Configuration
+
+Machine-specific settings and calibration results are stored outside the repository, in `~/.ros/so101_driver` (`$ROS_HOME/so101_driver` when `ROS_HOME` is set).
+
+| File | Contents |
+|---|---|
+| `config/leader.yaml` | Leader device ID and calibration file |
+| `config/follower.yaml` | Follower device ID, calibration file and motion settings |
+| `config/teleop.yaml` | Teleoperation alignment and joint scales |
+| `config/cameras.yaml` | USB camera list (only when using cameras) |
+| `calibration/leader.json`, `calibration/follower.json` | Calibration results |
+
+Changes take effect when the node restarts; no rebuild is needed.
+See [Setup](docs/so101_setup.md#settings-files) for every setting.
+
+## Documentation
+
+| Guide | Contents |
+|---|---|
+| [Setup](docs/so101_setup.md) | Motor IDs, device IDs, settings files and where they are stored |
+| [Calibration](docs/so101_calibration.md) | Recording the reference pose and joint ranges, and how the results are saved and used |
+| [Follower control interface](docs/so101_follower.md) | ROS API, starting and stopping control, motion settings |
+| [Slider GUI](docs/so101_gui.md) | Moving joints, saving and returning to a home pose |
+| [Motor status](docs/so101_motor_monitor.md) | Displayed values, units and faults |
+| [Teleoperation](docs/so101_teleop.md) | Alignment, following, starting and stopping |
+| [Cameras](docs/so101_cameras.md) | USB camera setup, streaming with teleoperation, recording |
+| [Feetech SDK](docs/feetech_sdk_source.md) | Source and installation of the bundled official SDK |
+
+## Development
+
+Lint and format with [Ruff](https://docs.astral.sh/ruff/) (settings in `ruff.toml`) in the repository directory:
+
+```bash
+ruff check .
+ruff format .
+```
+
+Run the tests from the workspace root:
+
+```bash
+colcon test --packages-select so101_driver
+colcon test-result --verbose
+```
+
+## License
+
+This package is released under the [Apache License 2.0](LICENSE).
+The following components are under their own licenses:
+
+| Component | License | Source |
+|---|---|---|
+| Official Feetech Python SDK (submodule) | MIT | [Feetech SDK](docs/feetech_sdk_source.md) |
+| Robot model (URDF and meshes) | Apache-2.0 | [Robot model](description/README.md) |

@@ -24,7 +24,7 @@ class TerminalTests(unittest.TestCase):
             return "save"
 
         with patch("builtins.input", side_effect=answer):
-            self.assertEqual(terminal.read("記録結果\nsave> "), "save")
+            self.assertEqual(terminal.read("Recorded ranges\nsave> "), "save")
         output = stream.getvalue()
         self.assertIn("2000", output)
         self.assertNotIn("2010", output)
@@ -55,6 +55,7 @@ class TerminalTests(unittest.TestCase):
         terminal.update(["ignored after input"])
         self.assertEqual(stream.getvalue(), output)
 
-    def test_japanese_lines_fit_without_wrapping(self):
-        self.assertEqual(fit_line("正常abc", 6), "正常ab")
-        self.assertEqual(fit_line("正常abc", 3), "正")
+    def test_full_width_lines_fit_without_wrapping(self):
+        # Full-width letters take two terminal columns each.
+        self.assertEqual(fit_line("ＯＫabc", 6), "ＯＫab")
+        self.assertEqual(fit_line("ＯＫabc", 3), "Ｏ")
