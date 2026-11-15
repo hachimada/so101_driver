@@ -10,8 +10,6 @@
     publish_rate_hz: 30.0
     # Per-motor diagnostic update rate; 0 disables additional reads.
     motor_state_rate_hz: 2.0
-    # Startup permission only. enable_control must also be called explicitly.
-    allow_writes: false
     command_timeout_s: 0.5
     # Speed of every joint, gripper included; position targets are sent without interpolation.
     max_velocity_rad_s: 1.57
