@@ -50,6 +50,8 @@ setup(
         for directory in ("description", "description/so101", "description/so101/assets")
     ],
     install_requires=["setuptools"],
+    # colcon test runs pytest only when it is listed as a test dependency.
+    extras_require={"test": ["pytest"]},
     description="ROS 2 driver for the SO-ARM101: calibration, control, GUI and teleoperation",
     license="Apache-2.0",
     url="https://github.com/hachimada/so101_driver",

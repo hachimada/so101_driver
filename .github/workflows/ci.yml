@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Monthly, to catch breakage from updated ROS images and packages.
+    - cron: "0 0 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Cancel superseded runs of a pull request; give every other run its own group
+  # so that no run on main is canceled.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    env:
+      RUFF: ruff==0.17.5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Ruff check
+        run: pipx run "$RUFF" check --output-format=github .
+      - name: Ruff format
+        run: pipx run "$RUFF" format --check .
+
+  test:
+    name: Build and test (ROS 2 Humble)
+    runs-on: ubuntu-24.04
+    container: ros:humble-ros-base-jammy
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: src/so101_driver
+          submodules: recursive
+          persist-credentials: false
+      - name: Install dependencies
+        run: |
+          apt-get update
+          rosdep update --rosdistro humble
+          rosdep install --from-paths src --ignore-src --rosdistro humble -y
+      - name: Build
+        run: |
+          source /opt/ros/humble/setup.bash
+          colcon build --packages-select so101_driver
+      - name: Test
+        run: |
+          source /opt/ros/humble/setup.bash
+          colcon test --packages-select so101_driver --return-code-on-test-failure
+      - name: Test results
+        if: always()
+        run: |
+          source /opt/ros/humble/setup.bash
+          colcon test-result --verbose
+          # colcon falls back to unittest without a pytest result; fail instead of passing 0 tests.
+          test -s build/so101_driver/pytest.xml
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-logs
+          path: |
+            build/so101_driver/pytest.xml
+            log/
+          if-no-files-found: ignore
