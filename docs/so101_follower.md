@@ -1,109 +1,124 @@
-# フォロワー制御インターフェース
+# Follower control interface
 
-ROSトピックで6軸の位置を指令し、サービスで制御の開始・停止とトルク解除を行います。
-[スライダーGUI](so101_gui.md)と[テレオペ](so101_teleop.md)も、このインターフェースを使用します。
+**English** | [日本語](ja/so101_follower.md)
 
-## 起動
+The follower node takes six-joint position commands on a ROS topic, and starts and stops control and releases torque through services.
+The [slider GUI](so101_gui.md) and [teleoperation](so101_teleop.md) also use this interface.
 
-[機体の設定](so101_setup.md)と[キャリブレーション](so101_calibration.md)を済ませてから実行します。
+## Start
+
+Complete [setup](so101_setup.md) and [calibration](so101_calibration.md) first.
 
 ```bash
 ros2 launch so101_driver follower_control.launch.py allow_writes:=true
 ```
 
-`allow_writes:=true`で制御を許可します。省略時は状態取得のみです。
-実際の制御は、[開始サービス](#制御の開始停止)を呼んでから有効になります。
+`allow_writes:=true` allows control. Without it, the node only reads state.
+`allow_writes` is set only by this launch argument, not in `follower.yaml`.
+Control takes effect only after you call the [start service](#start-and-stop-control).
 
-1台のアームのUSBポートは、同時に1つのプロセスだけが使えます。
-同じアームをほかのノードや`so101_calibrate`が使用中の場合は、`is in use by another process`と表示して起動を中止します。
-スライダーGUIとテレオペもこのノードを起動するため、同じアームで同時には起動できません。
+### Launch arguments
 
-## ROSインターフェース
+| Argument | Default | Description |
+|---|---|---|
+| `params_file` | `~/.ros/so101_driver/config/follower.yaml`, or the installed template if it does not exist | Follower settings YAML |
+| `allow_writes` | `false` | Allow starting control and releasing torque |
+| `release_torque_on_shutdown` | `false` | Release torque on all six joints when the node shuts down |
 
-| 名前 | 型 | ノードのQoS | 内容 |
+Only one process at a time can use an arm's USB port.
+If another node or `so101_calibrate` is using the same arm, the node prints `is in use by another process` and does not start.
+The slider GUI and teleoperation also start this node, so they cannot run at the same time on the same arm.
+
+## ROS interface
+
+| Name | Type | Node QoS | Description |
 |---|---|---|---|
-| `/follower/joint_command` | sensor_msgs/msg/JointState | 購読：Reliable、KeepLast 1 | 6軸の位置目標、rad |
-| `/follower/joint_states` | sensor_msgs/msg/JointState | 配信：**BestEffort**、KeepLast 5 | 6軸の実測角度、rad |
-| `/follower/diagnostics` | diagnostic_msgs/msg/DiagnosticArray | 配信：Reliable、KeepLast 10 | 制御状態と異常 |
-| `/follower/motor_states` | diagnostic_msgs/msg/DiagnosticArray | 配信：Reliable、KeepLast 10 | 各モーターの状態。[項目の説明](so101_motor_monitor.md#rosトピック) |
-| `/follower/enable_control` | std_srvs/srv/SetBool | — | trueで開始、falseで保持・指令受付停止 |
-| `/follower/release_torque` | std_srvs/srv/Trigger | — | 全軸のトルク解除 |
+| `/follower/joint_command` | sensor_msgs/msg/JointState | Subscribe: Reliable, KeepLast 1 | Position targets for the six joints, rad |
+| `/follower/joint_states` | sensor_msgs/msg/JointState | Publish: **BestEffort**, KeepLast 5 | Measured angles of the six joints, rad |
+| `/follower/diagnostics` | diagnostic_msgs/msg/DiagnosticArray | Publish: Reliable, KeepLast 10 | Control state and errors. See [Diagnostics](#diagnostics) |
+| `/follower/motor_states` | diagnostic_msgs/msg/DiagnosticArray | Publish: Reliable, KeepLast 10 | State of each motor. See [Motor status](so101_motor_monitor.md#ros-topic) |
+| `/follower/enable_control` | std_srvs/srv/SetBool | — | `true` starts control; `false` holds and stops accepting commands |
+| `/follower/release_torque` | std_srvs/srv/Trigger | — | Release torque on all joints |
 
-`/follower/joint_states`はBestEffortで配信します。購読側もBestEffortにしてください。
-既定のReliableで購読すると、何も受信できません。`ros2 topic echo`では`--qos-reliability best_effort`を付けます。
+`/follower/joint_states` is published with BestEffort QoS, so subscribe with BestEffort as well.
+A subscriber with the default Reliable QoS receives nothing. With `ros2 topic echo`, add `--qos-reliability best_effort`.
 
-### 位置指令の形式
+### Command format
 
-`/follower/joint_command`には次の条件で[JointState](https://github.com/ros2/common_interfaces/blob/humble/sensor_msgs/msg/JointState.msg)を送信します。
+Send a [JointState](https://github.com/ros2/common_interfaces/blob/humble/sensor_msgs/msg/JointState.msg) on `/follower/joint_command` as follows:
 
-| フィールド | 指定方法 |
+| Field | Value |
 |---|---|
-| `name` | `shoulder_pan`、`shoulder_lift`、`elbow_flex`、`wrist_flex`、`wrist_roll`、`gripper`を各1回。順序は任意 |
-| `position` | `name`に対応する6個の有限値。グリッパーもrad |
-| `header.stamp` | 送信時のROS時刻。指令ごとに更新 |
-| `velocity` / `effort` / `header.frame_id` | 空 |
+| `name` | Each of `shoulder_pan`, `shoulder_lift`, `elbow_flex`, `wrist_flex`, `wrist_roll`, `gripper` exactly once, in any order |
+| `position` | Six finite values matching `name`. The gripper is also in rad |
+| `header.stamp` | ROS time when sent. Update it for every command |
+| `velocity` / `effort` / `header.frame_id` | Empty |
 
-全6軸を毎回送信します。
-時刻が0、未来、制御開始前、前回以下、または有効期限を過ぎた指令は拒否します。
-送信元と実機ノードは時刻を合わせ、`use_sim_time=false`で使用してください。
+Send all six joints in every command.
+A command is rejected if its stamp is zero, in the future, before control started, not newer than the previous command, or older than `command_timeout_s`.
+A command with a target outside the [command range](#command-range) is also rejected.
+Keep the clocks of the sender and the driver in sync, and use `use_sim_time=false`; the node refuses to start with `allow_writes` and simulated time.
 
-購読QoSはReliable / Volatile / KeepLast 1です。送信側もReliableにします。
-到達完了の応答は返さないため、現在位置は`/follower/joint_states`で確認します。
+The subscription QoS is Reliable / Volatile / KeepLast 1, so publish with Reliable as well.
+There is no reply when a target is reached; read the current position from `/follower/joint_states`.
 
-### 制御の開始・停止
+### Start and stop control
 
-`/follower/enable_control`に`data: true`を送ると制御を開始し、`data: false`を送ると停止します。
-コマンドの例は[ターミナルから操作する](#ターミナルから操作する)を参照してください。
+Send `data: true` to `/follower/enable_control` to start control and `data: false` to stop it.
+For example commands, see [Control from the terminal](#control-from-the-terminal).
 
-開始する前に、6軸の目標を継続して送信するプログラムを用意してください。
-開始時は現在位置を保持目標にします。
-開始前の指令は使わないため、開始後も新しい時刻を付けた指令を送り続けてください。
-有効な指令が`command_timeout_s`以内に届かないと停止します。
+Before starting, have a program ready that keeps sending targets for all six joints.
+At start, the current position becomes the holding target.
+Commands sent before the start are not used, so keep sending commands with new stamps after the start.
+Each accepted command keeps control alive until `command_timeout_s` after its stamp; if no valid command arrives in time, control stops.
 
-現在位置はサーボの可動範囲内にある必要があります。
-全軸のトルクがOFF、または全軸がONで静止・保持している場合に開始できます。
-起動直後に一部の軸だけがONの場合や保持状態を確認できない場合は、理由を返して開始を拒否します。
+The start is accepted when:
 
-停止すると、現在位置への保持指令を送り、指令受付を停止します。トルクはONのままです。
-再開には`data: true`を送ります。再開時も現在位置を初期目標にします。
-この起動コマンドでは、Ctrl+Cなどでノードを終了した場合も保持を試みます。
-`release_torque_on_shutdown:=true`を追加すると、終了時に全6軸のトルクを解除します。
-[テレオペ](so101_teleop.md#終了)では終了時のトルク解除が自動で有効になります。
+- the current position of every joint is within its servo position limits, and
+- torque is off on all joints, or on with every servo stationary and holding its position.
 
-### トルク解除
+If torque is on for only some joints right after startup, or holding cannot be confirmed, the start is rejected with the reason.
 
-腕を支えて実行します。
+Stopping sends a hold command at the current position and stops accepting commands. Torque stays on.
+Send `data: true` to resume; the current position becomes the initial target again.
+When this node shuts down (for example with Ctrl+C) while in control, it also tries to hold the position.
+With `release_torque_on_shutdown:=true`, it releases torque on all six joints at shutdown instead.
+[Teleoperation](so101_teleop.md#shut-down) enables the torque release at shutdown automatically.
+
+### Release torque
+
+Support the arm, then run:
 
 ```bash
 ros2 service call /follower/release_torque std_srvs/srv/Trigger '{}'
 ```
 
-指令受付を停止し、全6軸のトルクOFFを確認して成功を返します。
-解除に失敗した場合は理由を返します。接続状態を確認して再試行してください。
-このサービスも`allow_writes:=true`で起動した場合に使用できます。
+The node stops accepting commands, confirms by readback that torque is off on all six joints and then returns success.
+If the release fails, the reason is returned. Check the connection and try again.
+This service also requires `allow_writes:=true`.
 
-## ターミナルから操作する
+## Control from the terminal
 
-ターミナル1で[起動コマンド](#起動)を実行した状態で、以下を操作します。
-ターミナル2で位置指令を送信し、ターミナル3で開始・停止します。
+With the [start command](#start) running in terminal 1, use the following steps.
+Terminal 2 sends position commands, and terminal 3 starts and stops control.
 
-### 1. 現在角度を確認する
+### 1. Read the current angles
 
-ターミナル2で、現在の関節名と角度を1回取得します。
+In terminal 2, read the joint names and angles once:
 
 ```bash
 ros2 topic echo /follower/joint_states sensor_msgs/msg/JointState \
   --once --qos-reliability best_effort
 ```
 
-`position`は`name`と同じ順序の角度（rad）です。
-1軸だけ動かしたい場合は、残り5軸の目標値に現在角度を指定します。
+`position` lists the angles (rad) in the same order as `name`.
+To move only one joint, use the current angles as the targets of the other five.
 
-### 2. 目標角度を送信する
+### 2. Send the target angles
 
-ターミナル2で次を実行し、送信したままにします。
-以下は`shoulder_pan`を0.1 rad（約5.7°）、ほかの5軸を0 radにする例です。
-`position`の6個の値は、実機のキャリブレーション範囲内で使用する目標角度に置き換えてください。
+Run the following in terminal 2 and leave it running.
+This example sets `shoulder_pan` to 0.1 rad (about 5.7°) and the other five joints to 0 rad.
+Replace the six `position` values with targets within your arm's calibrated range.
 
 ```bash
 ros2 topic pub /follower/joint_command sensor_msgs/msg/JointState \
@@ -113,85 +128,108 @@ ros2 topic pub /follower/joint_command sensor_msgs/msg/JointState \
   --rate 30 --qos-reliability reliable
 ```
 
-`header: auto`で送信ごとに現在時刻を設定し、`--rate 30`で毎秒30回送信します。
-制御開始までは指令が拒否されますが、次の手順で開始すると受け付けます。
-目標到達後も送信を続けます。送信を止めると、既定では0.5秒後に制御が停止します。
+`header: auto` stamps each message with the current time, and `--rate 30` sends 30 messages per second.
+The commands are rejected until control starts, and accepted once you start control in the next step.
+Keep sending after the target is reached. If sending stops, control stops after 0.5 seconds by default.
 
-### 3. 制御を開始する
+### 3. Start control
 
-ターミナル3で実行します。
+In terminal 3, run:
 
 ```bash
 ros2 service call /follower/enable_control std_srvs/srv/SetBool '{data: true}'
 ```
 
-`success: true`を確認します。フォロワーが送信中の目標へ移動します。
-続けて現在角度を表示できます。表示だけを終了するにはCtrl+Cを押します。
+Check for `success: true`. The follower moves to the target being sent.
+You can then watch the current angles. Press Ctrl+C to stop watching.
 
 ```bash
 ros2 topic echo /follower/joint_states sensor_msgs/msg/JointState \
   --field position --qos-reliability best_effort
 ```
 
-### 4. 停止する・目標を変更する
+### 4. Stop, or change the target
 
-ターミナル3で角度の表示を終了し、停止サービスを実行します。
+In terminal 3, stop watching the angles and call the stop service:
 
 ```bash
 ros2 service call /follower/enable_control std_srvs/srv/SetBool '{data: false}'
 ```
 
-停止後、ターミナル2の送信をCtrl+Cで終了します。
-別の目標へ動かす場合は、手順2の`position`を変更して再送信し、手順3で制御を開始します。
-トルクも切る場合は、腕を支えて[トルク解除](#トルク解除)のコマンドを実行してください。
+After stopping, press Ctrl+C in terminal 2 to stop sending.
+To move to another target, change `position` in step 2, send it again and start control as in step 3.
+To also turn off torque, support the arm and run the [release torque](#release-torque) command.
 
-## 位置指令と動作設定
+## Motion settings
 
-最新の目標位置をサーボへ送り、移動中も新しい目標へ更新します。
-移動速度・加減速と位置への追従はサーボ側で処理します。
-これらの設定はGUI・ホーム移動・テレオペに共通です。
+The node sends the latest target to the servos and updates it even while they are moving.
+The servos handle the speed, acceleration and tracking of the target.
+These settings are shared by the GUI, the home move and teleoperation.
 
-`~/.ros/so101_driver/config/follower.yaml`を編集し、ノードを再起動して反映します。
+Edit `~/.ros/so101_driver/config/follower.yaml` and restart the node to apply them.
 
-| 設定 | 既定値 | 内容 |
+| Setting | Default | Description |
 |---|---|---|
-| `publish_rate_hz` | 30.0 | 状態取得と指令更新の頻度（5〜100 Hz） |
-| `command_timeout_s` | 0.5 | 指令の有効期間と、開始直後の指令待ち期限（秒、0より大きい値） |
-| `max_velocity_rad_s` | 1.57 | 各関節の移動速度（rad/s、0より大きい値。1.57は約90°/s）。大きくすると速く移動 |
-| `servo_acceleration_raw` | 20 | 加減速の設定（整数1〜254）。大きくすると速度変化が急になる |
-| `gripper_torque_limit_pct` | 20.0 | グリッパーの出力上限（0〜100%、0.1%単位） |
-| `motor_state_rate_hz` | 2.0 | 1軸あたりの状態監視頻度（0〜10 Hz）。0で無効 |
+| `publish_rate_hz` | 30.0 | Rate of state reads and target updates (5–100 Hz) |
+| `command_timeout_s` | 0.5 | How long a command stays valid, and how long to wait for the first command after the start (seconds, greater than 0) |
+| `max_velocity_rad_s` | 1.57 | Speed of every joint (rad/s, greater than 0; 1.57 is about 90°/s). Higher values move faster |
+| `servo_acceleration_raw` | 20 | Acceleration setting (integer, 1–254). Higher values change speed more abruptly |
+| `gripper_torque_limit_pct` | 20.0 | Gripper output limit (0–100%, in steps of 0.1%) |
+| `motor_state_rate_hz` | 2.0 | Motor status rate per joint (0–10 Hz). 0 disables it |
 
-範囲外の値を指定すると、ノードは起動時にエラーを表示して終了します。
+With an out-of-range value, the node logs an error at startup and exits.
 
-GUI・テレオペは、関節状態と診断情報が0.5秒以上更新されないと制御を停止します。
-このため`publish_rate_hz`は5 Hz以上とし、取得に1回失敗しても停止しない頻度にしています。
+The GUI and teleoperation stop control when the joint states or diagnostics are more than 0.5 seconds old.
+That is why `publish_rate_hz` must be at least 5 Hz: a single failed read then does not stop control.
 
-位置目標の範囲は、キャリブレーションで観測した範囲と、記録したサーボの可動範囲の共通部分です。
-範囲外の位置目標は拒否します。URDFの可動範囲は制御範囲に使用しません。
+### Command range
 
-速度は関節ごとにサーボの単位（tick/秒）へ換算し、グリッパーを含む全6軸を`max_velocity_rad_s`で動かします。
-グリッパーの角度は、キャリブレーションで記録した閉・開の位置に-0.17〜1.75 radを割り当てた値です。
-既定値の1.57 rad/sでは、閉から開まで約1.2秒で動く速度になります（加減速の時間を除く）。
+The command range of each joint is the intersection of the range observed during calibration and the servo position limits recorded at calibration.
+Targets outside this range are rejected. The URDF joint limits are not used for control.
 
-加減速はサーボ角度を基準とします。`servo_acceleration_raw`の1単位は8.7度/秒²で、既定値20は174度/秒²に相当します。
-グリッパーでは、関節角度での加減速がキャリブレーションの開閉幅によってこの値と異なります。
+### Speed and acceleration
 
-`gripper_torque_limit_pct`を上げると強く把持できる一方、発熱や過負荷が増える場合があります。
-下げると負担を抑えられますが、物を保持できなくなる場合があります。
-100%はサーボ出力の上限、0%は出力なしを意味し、把持力をN単位で指定する設定ではありません。
-制御開始のたびに適用します。腕5軸の出力上限と過負荷保護の設定は変更しません。
+The speed is converted to servo units (ticks/s) for each joint, so all six joints, gripper included, move at `max_velocity_rad_s`.
+The gripper angle maps the calibrated closed and open positions to -0.17 to 1.75 rad.
+At the default 1.57 rad/s, the gripper moves from closed to open in about 1.2 seconds (excluding acceleration).
 
-設定値の仕様は[Feetech公式STSメモリ表](https://ftservo.github.io/ftservo-wiki/reference/parameter/memory-sts/)を参照してください。
+Acceleration is defined on the servo angle. One unit of `servo_acceleration_raw` is 8.7°/s², so the default of 20 is 174°/s².
+For the gripper, the acceleration in joint angle differs from this value depending on the calibrated opening width.
 
-## 通信異常・指令途絶
+### Gripper output limit
 
-期限内に有効な指令が届かない場合や、位置取得・目標送信に失敗した場合は、保持を試みて制御を停止します。
-通信が復旧すると状態配信は再開しますが、制御の再開には開始サービスが必要です。
+A higher `gripper_torque_limit_pct` grips more firmly but can increase heating and overload.
+A lower value reduces the load but may let objects slip.
+100% is the maximum servo output and 0% is no output; it is not a grip force in newtons.
+It is applied and verified at every control start, and is not kept after a power cycle.
+The output limits and overload protection of the five arm joints are not changed.
 
-`Hold NOT confirmed`が表示された場合は保持指令の成功を確認できていません。
-接続状態を確認し、停止サービス（`data: false`）で保持を再試行できます。
-通信断や一部の軸への送信失敗では、全軸の保持が成立しない場合があります。
+For the register specifications, see the [official Feetech STS memory table](https://ftservo.github.io/ftservo-wiki/reference/parameter/memory-sts/).
 
-`/follower/diagnostics`で`allow_writes`（制御許可）、`control_active`（制御中）、
-`control_status`（状態）、`failed_samples`（取得失敗数）、`rejected_commands`（指令拒否数）を確認できます。
+## Communication errors and command loss
+
+If no valid command arrives in time, or reading positions or sending targets fails, the node tries to hold the position and stops control.
+State publishing resumes when communication recovers, but control resumes only after you call the start service again.
+
+`Hold NOT confirmed` means the hold command could not be confirmed.
+Check the connection; you can retry the hold with the stop service (`data: false`).
+A lost connection or a failed write to some joints may leave the joints not holding.
+
+## Diagnostics
+
+`/follower/diagnostics` publishes one `DiagnosticStatus` named `/follower/so101_follower/hardware`, with the device ID as `hardware_id`.
+
+| Level | Meaning |
+|---|---|
+| OK | Normal operation |
+| WARN | Control stopped while torque is on (holding) |
+| ERROR | A position read or target write failed, or a hold or torque release was not confirmed |
+
+| Key | Description |
+|---|---|
+| `allow_writes` | Whether control is allowed |
+| `control_active` | Whether control is running |
+| `control_status` | Control state message |
+| `failed_samples` | Number of failed position reads |
+| `rejected_commands` | Number of rejected commands |
+| `motor_state_rate_hz` | Motor status rate per joint |

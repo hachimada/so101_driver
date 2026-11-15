@@ -1,57 +1,59 @@
-# モーター状態の見方
+# Motor status
 
-スライダーGUIの「Motor status」で、Feetech公式Python SDKから取得した情報を確認できます。
-制御開始前も表示します。関節の行を選ぶと、そのモーターの詳細を表示します。
+**English** | [日本語](ja/so101_motor_monitor.md)
 
-## 一覧の項目
+The **Motor status** panel of the slider GUI shows information read through the official Feetech Python SDK.
+It is shown before control starts as well. Select a joint row to see the details of that motor.
 
-| 表示 | 意味 |
+## Table columns
+
+| Column | Meaning |
 |---|---|
-| ID | サーボのモーターID（1〜6） |
-| Joint | スライダーと共通の関節名 |
-| Torque | サーボの出力状態。OFF / ON / Damping（ダンピング） |
-| Motion | サーボが報告する動作状態。Stopped（停止中） / Moving（移動中） |
-| Speed (rpm) | モーターの回転速度 |
-| Current (mA) | モーターの相電流 |
-| Duty (%) | デューティー比。PWMのON時間 ÷ 1周期の時間 × 100 |
-| Voltage (V) | サーボが報告する電圧 |
-| Temp (°C) | サーボ内部の温度 |
-| Status | OK（正常）、異常の内容、Communication failed（通信失敗）、Stale（更新停止）、No data（未取得） |
+| ID | Servo motor ID (1–6) |
+| Joint | Joint name, the same as the sliders |
+| Torque | Servo output state: OFF / ON / Damping |
+| Motion | Moving state reported by the servo: Stopped / Moving |
+| Speed (rpm) | Motor speed |
+| Current (mA) | Motor phase current |
+| Duty (%) | PWM duty cycle: on time ÷ period × 100 |
+| Voltage (V) | Voltage reported by the servo |
+| Temp (°C) | Internal servo temperature |
+| Status | OK, the fault names, Communication failed, Stale (no recent update) or No data (not read yet) |
 
-電流・デューティー比・速度の符号はサーボ側の方向を表します。
-デューティー比の100%は、PWMの1周期全体がONである状態です。
-「Stopped」はサーボ内の目標に対する動作状態なので、手で動かしていても表示される場合があります。
+The signs of current, duty cycle and speed show the direction on the servo side.
+A duty cycle of 100% means the PWM output is on for the whole period.
+**Stopped** is the moving state relative to the servo's internal goal, so it can be shown while you move the arm by hand.
 
-電流フィードバックに対応しない設定の機体は、電流を「N/A」と表示します。
-速度の換算に必要な設定が未取得の場合は、rpmを「—」と表示します。
+If the servo's phase setting does not provide current feedback, the current is shown as **N/A**.
+Until the setting needed for the speed conversion has been read, the speed is shown as **—**.
 
-## 関節ごとの詳細
+## Details of each joint
 
-選択した関節について、次の情報を確認できます。設定値の表示は読み取り専用です。
+For the selected joint, the following are shown. All settings are read-only.
 
-- 現在角度、現在位置とサーボ内の目標位置のtick値
-- 電流・電圧・速度の生値、出力上限、異常ビット
-- モデル、ファームウェア、動作モード
-- 位置範囲、温度・電圧・電流の保護設定
-- 位置PIDなどの設定値
+- Current angle, and the current and servo goal positions in ticks
+- Raw current, voltage and speed values, the torque limit setting and the fault bits
+- Model, firmware and operating mode
+- Position range, and the temperature, voltage and current protection settings
+- Settings such as the position PID gains
 
-サーボ内の目標位置は、そのサーボに送信した位置目標です。
-指令と状態表示の更新時刻は異なるため、目標変更直後は表示が遅れる場合があります。
+The servo goal position is the last position target sent to that servo.
+Commands and the status display are updated at different times, so the display can lag just after the target changes.
 
-## 異常・取得失敗の表示
+## Faults and read failures
 
-電圧（Voltage）、エンコーダー（Encoder）、過熱（Overheat）、過電流（Overcurrent）、過負荷（Overload）の異常は、赤字で表示します。
-通信失敗時や更新停止時は、数値を「—」にします。取得が復旧すると表示も戻ります。
-画面には位置取得失敗・状態取得失敗・指令拒否の累計回数も表示します。
+Voltage, Encoder, Overheat, Overcurrent and Overload faults are shown in red.
+On a communication failure or when updates stop, the values are shown as **—**. They reappear once reads recover.
+The window also shows the total number of position read failures, status read failures and rejected commands.
 
-状態表示が復旧しても、停止した制御は自動再開しません。
-原因を解消し、GUIの「Start control」から再開してください。
+Control that has stopped does not restart automatically when the status display recovers.
+Fix the cause, then press **Start control** in the GUI to resume.
 
-## 更新頻度
+## Update rate
 
-`~/.ros/so101_driver/config/follower.yaml`の`motor_state_rate_hz`で、1軸あたりの更新頻度を指定します。
-既定は2 Hzで、0〜10 Hzを指定できます。`0.0`にすると状態監視を無効にします。
-モデル情報や保護設定は約10秒ごとに更新します。
+`motor_state_rate_hz` in `~/.ros/so101_driver/config/follower.yaml` sets the update rate per joint.
+The default is 2 Hz, and values from 0 to 10 Hz are accepted. `0.0` disables motor monitoring.
+Model information and protection settings are read about every 10 seconds.
 
 ```yaml
 /follower/so101_follower:
@@ -59,29 +61,29 @@
     motor_state_rate_hz: 2.0
 ```
 
-## ROSトピック
+## ROS topic
 
-| トピック | 型 | 内容 |
+| Topic | Type | Description |
 |---|---|---|
-| `/follower/motor_states` | diagnostic_msgs/msg/DiagnosticArray | 1回につき1軸の状態 |
+| `/follower/motor_states` | diagnostic_msgs/msg/DiagnosticArray | The state of one joint per message, cycling through the six joints |
 
-`DiagnosticStatus.name`は`/follower/so101_follower/motor/<joint_name>`、
-`hardware_id`はデバイスIDとモーターIDです。
-主な`values`のキーは次のとおりです。
+`DiagnosticStatus.name` is `/follower/so101_follower/motor/<joint_name>`,
+and `hardware_id` is `<device ID>:<motor ID>`.
+The main `values` keys are:
 
-| キー | 内容 |
+| Key | Description |
 |---|---|
-| `sample_valid` | 状態取得の成否 |
-| `current_ma` / `voltage_v` / `temperature_c` | 電流（mA）・電圧（V）・温度（℃） |
-| `position_ticks` / `speed_raw` | 位置・速度の生値 |
-| `packet_error` / `servo_status` | 応答パケット・サーボの異常ビット |
-| `rate_hz` / `read_failures` | 更新頻度・その軸の状態取得失敗回数 |
+| `sample_valid` | Whether the status read succeeded |
+| `current_ma` / `voltage_v` / `temperature_c` | Current (mA), voltage (V) and temperature (°C) |
+| `position_ticks` / `speed_raw` | Raw position and speed |
+| `packet_error` / `servo_status` | Fault bits of the response packet and of the servo |
+| `rate_hz` / `read_failures` | Update rate, and the number of failed status reads for that joint |
 
-## 単位の換算と出典
+## Unit conversion and sources
 
-電流は符号変換後の値に6.5 mA、電圧は0.1 V、デューティー比は0.1%を掛けて表示します。
-速度はサーボの相位設定に応じ、1単位を0.0146 rpmまたは0.732 rpmとして換算します。
+The current is shown as the signed value × 6.5 mA, the voltage as the value × 0.1 V, and the duty cycle as the signed value × 0.1%.
+The speed is converted at 0.0146 rpm or 0.732 rpm per unit, depending on the servo phase setting.
 
-仕様は[Feetech公式STSメモリ表](https://ftservo.github.io/ftservo-wiki/reference/parameter/memory-sts/)と
-[STS3215のフィードバック説明](https://www.feetechrc.com/20210430-56680.html)を参照してください。
-使用するSDKは[Feetech公式SDKの取得と出典](feetech_sdk_source.md)に記載しています。
+For the specifications, see the [official Feetech STS memory table](https://ftservo.github.io/ftservo-wiki/reference/parameter/memory-sts/)
+and the [STS3215 feedback description](https://www.feetechrc.com/20210430-56680.html).
+The SDK in use is described in [Feetech SDK](feetech_sdk_source.md).

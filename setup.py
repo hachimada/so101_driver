@@ -18,9 +18,10 @@ setup(
     package_dir={"so101_driver._vendor.scservo_sdk": str(sdk_directory / "scservo_sdk")},
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/so101_driver"]),
-        ("share/so101_driver", ["package.xml", "README.md"]),
+        ("share/so101_driver", ["package.xml", "README.md", "README.ja.md"]),
         ("share/so101_driver/licenses/FTServo_Python", [str(sdk_directory / "LICENSE")]),
         ("share/so101_driver/docs", sorted(str(p) for p in Path("docs").glob("*.md"))),
+        ("share/so101_driver/docs/ja", sorted(str(p) for p in Path("docs/ja").glob("*.md"))),
         (
             "share/so101_driver/config",
             [
@@ -55,7 +56,7 @@ setup(
     description="ROS 2 driver for the SO-ARM101: calibration, control, GUI and teleoperation",
     license="Apache-2.0",
     url="https://github.com/hachimada/so101_driver",
-    maintainer="nao",
+    maintainer="hachimada",
     maintainer_email="60519909+hachimada@users.noreply.github.com",
     entry_points={
         "console_scripts": [

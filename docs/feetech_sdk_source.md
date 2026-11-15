@@ -1,40 +1,42 @@
-# Feetech公式Python SDK
+# Feetech SDK
 
-モーター通信にはFeetech公式の[FTServo_Python](https://github.com/ftservo/FTServo_Python)を使用します。
+**English** | [日本語](ja/feetech_sdk_source.md)
 
-| 項目 | 内容 |
+Motor communication uses the official Feetech [FTServo_Python](https://github.com/ftservo/FTServo_Python) SDK.
+
+| Item | Value |
 |---|---|
-| 提供元 | Feetech / FTServo |
-| 配置先 | `vendor/FTServo_Python`（Gitサブモジュール） |
-| インストール先 | `so101_driver._vendor.scservo_sdk`（ドライバーのパッケージ内） |
-| 使用コミット | `cbcfa64674d592f7e5028ae72af42580f60500b4` |
-| ライセンス | MIT（`vendor/FTServo_Python/LICENSE`。`share/so101_driver/licenses/FTServo_Python/`にもインストール） |
+| Provider | Feetech / FTServo |
+| Location | `vendor/FTServo_Python` (Git submodule) |
+| Installed as | `so101_driver._vendor.scservo_sdk` (inside the driver package) |
+| Commit | `cbcfa64674d592f7e5028ae72af42580f60500b4` |
+| License | MIT (`vendor/FTServo_Python/LICENSE`, also installed to `share/so101_driver/licenses/FTServo_Python/`) |
 
-## 取得
+## Get the SDK
 
-[READMEのインストール](../README.md#インストール)では、SDKも一緒に取得します。
-クローン済みでSDKが未取得の場合は、リポジトリのディレクトリで次を実行してください。
-SDKの取得を求めるビルドエラーが出た場合も、このコマンドで取得してから再ビルドしてください。
+[Installation in the README](../README.md#installation) fetches the SDK together with the package.
+If you already cloned the repository without the SDK, run the following in the repository directory.
+Run it as well if the build fails with an error asking for the SDK, then build again.
 
 ```bash
 git submodule update --init --recursive
 ```
 
-SDKはパッケージと一緒にビルドし、`so101_driver`パッケージの中にインストールします。
-LeRobotが使うpipの`feetech-servo-sdk`もトップレベルの`scservo_sdk`を提供しますが、インストール先が異なるため、同じPython環境で併用できます。
+The SDK is built with the package and installed inside the `so101_driver` package.
+LeRobot's pip package `feetech-servo-sdk` also provides a top-level `scservo_sdk`, but because the install locations differ, both can be used in the same Python environment.
 
-### 以前のバージョンからの更新
+### Upgrade from an earlier version
 
-以前のバージョンでは、SDKをトップレベルの`scservo_sdk`としてインストールしていました。
-その頃にビルドしたワークスペースでは、再ビルドしても古い`scservo_sdk`がビルド結果に残ります。
-ワークスペースのディレクトリで次を実行し、ビルド結果を削除してから再ビルドしてください。
+Earlier versions installed the SDK as a top-level `scservo_sdk`.
+In a workspace built with such a version, the old `scservo_sdk` remains in the build output even after rebuilding.
+Run the following in the workspace directory to remove the build output, then rebuild:
 
 ```bash
 rm -rf build/so101_driver install/so101_driver
 colcon build --packages-select so101_driver
 ```
 
-## APIとサンプル
+## API and examples
 
-[公式SDKのリポジトリ](https://github.com/ftservo/FTServo_Python)で、上の表の使用コミットのソースとサンプルを参照してください。
-サブモジュールのSDKのコードは変更していません。
+See the source and examples at the commit in the table above in the [official SDK repository](https://github.com/ftservo/FTServo_Python).
+The SDK code in the submodule is not modified.

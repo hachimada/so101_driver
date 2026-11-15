@@ -1,60 +1,67 @@
-# スライダーGUI
+# Slider GUI
 
-フォロワーの6軸を操作し、各モーターの状態を確認できます。
+**English** | [日本語](ja/so101_gui.md)
 
-## 起動
+The slider GUI moves the six follower joints and shows the state of each motor.
 
-[機体の設定](so101_setup.md)と[キャリブレーション](so101_calibration.md)を済ませてから実行します。
+## Start
+
+Complete [setup](so101_setup.md) and [calibration](so101_calibration.md) first.
 
 ```bash
 ros2 launch so101_driver follower_slider_control.launch.py
 ```
 
-## 操作
+This also starts the [follower node](so101_follower.md) with control allowed (`allow_writes` defaults to `true`).
+Use `params_file:=/path/to/follower.yaml` to choose another settings file.
 
-1. 現在角度が表示され、「Ready to start」になるのを待ちます。
-2. 「Start control」を押します。現在姿勢が初期目標になります。
-3. スライダーまたは数値欄で目標角度を指定します。表示単位は度です。
-4. 操作を止めるときは「Stop」を押します。現在位置を保持します。
-5. 終了するときは腕を支え、「Release torque and quit」を押します。
+## Controls
 
-現在角度と目標角度は別々に表示します。
-操作範囲はキャリブレーションで記録した範囲とサーボの可動範囲から決まります。
+1. Wait until the current angles appear and the status shows **Ready to start**.
+2. Press **Start control**. The current pose becomes the initial target.
+3. Set target angles with the sliders or the number boxes. Angles are shown in degrees.
+4. Press **Stop** to stop. The arm holds its current position.
+5. To quit, support the arm and press **Release torque and quit**.
 
-「Stop」とウィンドウの×による終了では、トルクはONのままです。
-「Release torque and quit」は全軸のトルク解除を確認してから画面を閉じます。
-解除に失敗した場合は理由を表示するので、接続状態を確認して再試行してください。
+The current and target angles are shown separately.
+The range of each slider comes from the range recorded during calibration and the servo position limits.
 
-## ホーム位置
+**Stop** and closing the window keep torque on.
+**Release torque and quit** closes the window after confirming that torque is released on all joints.
+If the release fails, the reason is shown; check the connection and try again.
+Closing the GUI shuts down the follower node as well.
 
-| ボタン | 動作 |
+## Home pose
+
+| Button | Action |
 |---|---|
-| Set current pose as home | その時点の実測姿勢を保存。すでに登録済みの場合は置き換え |
-| Go home | 制御開始後、登録した姿勢へ移動 |
+| Set current pose as home | Save the measured pose at that moment. Replaces a previously saved home pose |
+| Go home | After starting control, move to the saved pose |
 
-登録は制御開始前にも行えます。全関節の現在値が取得でき、操作範囲内にあることが条件です。
-ホーム位置はキャリブレーションJSONに保存され、次回起動時も使用できます。
-キャリブレーションし直した場合は、ホーム位置も登録し直してください。
+You can save the home pose before starting control. All joint positions must be available and within the slider ranges.
+The home pose is saved in the calibration JSON and is available in later sessions.
+After you calibrate again, save the home pose again.
 
-ホーム移動は「Stop」で中断できます。
-移動速度・加減速は通常のスライダー操作と共通です。
-設定は[フォロワーの動作設定](so101_follower.md#位置指令と動作設定)を参照してください。
+**Stop** interrupts a move to home.
+The speed and acceleration are the same as for normal slider moves.
+See [Motion settings](so101_follower.md#motion-settings).
 
-## モーターの状態
+## Motor status
 
-画面下部で、トルク状態・速度・電流・デューティー比・電圧・温度・異常を確認できます。
-関節の行を選ぶと、目標位置、モデル情報、保護設定などの詳細を表示します。
-制御開始前も確認できます。
+The lower part of the window shows torque state, speed, current, duty cycle, voltage, temperature and faults.
+Select a joint row to see details such as the servo goal position, model information and protection settings.
+The status is shown before control starts as well.
 
-表示の意味と単位は[モーター状態の見方](so101_motor_monitor.md)を参照してください。
+For the meaning and units of each value, see [Motor status](so101_motor_monitor.md).
 
-## 操作できない場合
+## Troubleshooting
 
-| 表示・状況 | 対処 |
+| Message or situation | What to do |
 |---|---|
-| 現在姿勢が範囲外 | 表示された関節を確認し、操作範囲内の姿勢に合わせる |
-| 制御開始に失敗 | 画面とターミナルに表示された理由を確認する |
-| 通信異常でスライダーが無効 | 接続の復旧後に「Start control」を押す |
-| 「Go home」が無効 | ホームを登録し、制御を開始する。詳細はボタンのツールチップで確認 |
+| The current pose is outside the command range | Check the listed joints and move them into the slider range |
+| Control fails to start | Check the reason shown in the window and the terminal |
+| Sliders are disabled after a communication error | Press **Start control** after the connection recovers |
+| **Go home** is disabled | Save a home pose and start control. The button tooltip shows the reason |
+| `Follower control is not allowed` | The follower was started with `allow_writes:=false` |
 
-制御開始時の条件や停止動作は[制御インターフェース](so101_follower.md)を参照してください。
+For the start conditions and stop behavior, see the [follower control interface](so101_follower.md).
