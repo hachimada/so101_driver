@@ -56,7 +56,7 @@ setup(
     description="ROS 2 driver for the SO-ARM101: calibration, control, GUI and teleoperation",
     license="Apache-2.0",
     url="https://github.com/hachimada/so101_driver",
-    maintainer="nao",
+    maintainer="hachimada",
     maintainer_email="60519909+hachimada@users.noreply.github.com",
     entry_points={
         "console_scripts": [

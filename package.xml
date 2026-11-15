@@ -6,7 +6,7 @@
     ROS 2 driver for the SO-ARM101: calibration, follower position control, a slider GUI
     and leader-follower teleoperation, using the official Feetech SDK.
   </description>
-  <maintainer email="60519909+hachimada@users.noreply.github.com">nao</maintainer>
+  <maintainer email="60519909+hachimada@users.noreply.github.com">hachimada</maintainer>
   <license>Apache-2.0</license>
   <url type="website">https://github.com/hachimada/so101_driver</url>
   <url type="repository">https://github.com/hachimada/so101_driver</url>

@@ -50,14 +50,14 @@ v4l2-ctl --list-formats-ext -d /dev/v4l/by-path/…-video-index0
 ```yaml
 cameras:
   - name: front
-    device: /dev/v4l/by-path/pci-0000:80:14.0-usb-0:9:1.0-video-index0
+    device: /dev/v4l/by-path/pci-0000:00:14.0-usb-0:1:1.0-video-index0
     width: 640
     height: 480
     fps: 30
     parameters:
       pixel_format: mjpeg2rgb
   - name: wrist
-    device: /dev/v4l/by-path/pci-0000:80:14.0-usb-0:10:1.0-video-index0
+    device: /dev/v4l/by-path/pci-0000:00:14.0-usb-0:2:1.0-video-index0
     parameters:
       pixel_format: mjpeg2rgb
 ```
