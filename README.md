@@ -1,5 +1,7 @@
 # so101_driver
 
+[![CI](https://github.com/hachimada/so101_driver/actions/workflows/ci.yml/badge.svg)](https://github.com/hachimada/so101_driver/actions/workflows/ci.yml)
+
 **English** | [日本語](README.ja.md)
 
 A ROS 2 package for calibrating and controlling the SO-ARM101 (SO-101) robot arm through the official Feetech SDK.
@@ -209,6 +211,13 @@ Run the tests from the workspace root:
 colcon test --packages-select so101_driver
 colcon test-result --verbose
 ```
+
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the same checks on every pull request and on every push to `main`:
+
+- **Lint:** `ruff check` and `ruff format --check` with Ruff 0.17.5
+- **Build and test:** `rosdep install`, `colcon build` and `colcon test` in the `ros:humble-ros-base-jammy` container
+
+Use the same Ruff version locally, for example `uvx ruff@0.17.5 check .`. Older versions sort the `launch` imports differently.
 
 ## License
 

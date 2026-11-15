@@ -1,5 +1,7 @@
 # so101_driver
 
+[![CI](https://github.com/hachimada/so101_driver/actions/workflows/ci.yml/badge.svg)](https://github.com/hachimada/so101_driver/actions/workflows/ci.yml)
+
 [English](README.md) | **日本語**
 
 Feetech公式SDKを使い、SO-ARM101（SO-101）のキャリブレーションと制御を行うROS 2パッケージです。
@@ -209,6 +211,13 @@ ruff format .
 colcon test --packages-select so101_driver
 colcon test-result --verbose
 ```
+
+GitHub Actions（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）が、すべてのプルリクエストと`main`へのpushで同じチェックを実行します。
+
+- **Lint:** Ruff 0.17.5による`ruff check`と`ruff format --check`
+- **ビルドとテスト:** `ros:humble-ros-base-jammy`コンテナでの`rosdep install`・`colcon build`・`colcon test`
+
+手元でも同じバージョンのRuffを使ってください（例：`uvx ruff@0.17.5 check .`）。古いバージョンでは`launch`のimport順の判定が異なります。
 
 ## ライセンス
 
